@@ -1,0 +1,51 @@
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+def generate_correlation_heatmap(df_master):
+    print("Generating correlation heatmap for presentation...")
+    
+    # Select the most impactful columns for the presentation (avoiding clutter)
+    # Adjust exact column names based on your df_master keys
+    core_columns = [
+        'Grid Consumption', 
+        'Base Generation',
+        'Air Temperature', 
+        'Direct Normal Irradiance', 
+        'Wind Speed', 
+        'Relative Humidity'
+    ]
+    
+    # Filter the dataframe to only these columns
+    df_plot = df_master[core_columns]
+    
+    # Calculate the Pearson correlation matrix
+    corr_matrix = df_plot.corr()
+    
+    # Set up the matplotlib figure
+    plt.figure(figsize=(10, 8))
+    
+    # Draw the heatmap using seaborn
+    # 'coolwarm' palette is standard for correlations (Red = Positive, Blue = Negative)
+    sns.heatmap(
+        corr_matrix, 
+        annot=True,              # Show the exact correlation numbers
+        cmap='coolwarm',         # Color scale
+        fmt=".2f",               # Format to 2 decimal places
+        linewidths=0.5,          # Add grid lines between boxes
+        cbar_kws={"shrink": .8}, # Slightly shrink the color bar on the right
+        annot_kws={"size": 12}   # Increase text size for slide readability
+    )
+    
+    plt.title('Correlation Map: Grid Thermodynamics vs. Load', fontsize=16, pad=20)
+    plt.tight_layout()
+    
+    # Save the plot directly as the required file name with high resolution
+    plt.savefig('dataset_visualization.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    print("Saved successfully as 'dataset_visualization.png'")
+
+# --- How to use ---
+# Assuming you have already run your phase_0_extraction_and_merging() function
+# df_master = phase_0_extraction_and_merging('path/to/csv', 'path/to/h5')
+# generate_correlation_heatmap(df_master)

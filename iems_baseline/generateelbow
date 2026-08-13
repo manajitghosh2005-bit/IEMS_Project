@@ -1,0 +1,52 @@
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+import os
+
+# Import your custom data extraction engine
+from data_loader import extract_and_engineer_data
+
+# Set paths
+current_dir = os.path.dirname(os.path.abspath(__file__))
+CSV = os.path.join(current_dir, '..', 'data', 'rye_generation_and_load.csv')
+H5 = os.path.join(current_dir, '..', 'data', 'met_data.h5')
+
+# 1. Load and prep data using your unified engine
+df_master = extract_and_engineer_data(CSV, H5)
+df_math = df_master.drop(columns=['DateTime'])
+
+# 2. Scale the data
+scaler = StandardScaler()
+scaled_array = scaler.fit_transform(df_math)
+
+# 3. PCA compression (to match Slide 14 exactly)
+pca = PCA(n_components=3)
+pca_array = pca.fit_transform(scaled_array)
+
+# 4. Calculate WCSS for k=1 to 10
+print("Calculating WCSS for Elbow Plot...")
+wcss = []
+for i in range(1, 11):
+    kmeans = KMeans(n_clusters=i, init='k-means++', max_iter=300, n_init=10, random_state=42)
+    kmeans.fit(pca_array)
+    wcss.append(kmeans.inertia_)
+
+# 5. Plotting the Elbow Curve
+plt.style.use('seaborn-v0_8-whitegrid')
+plt.figure(figsize=(8, 6))
+plt.plot(range(1, 11), wcss, marker='o', linestyle='--', color='#e74c3c', linewidth=2, markersize=8)
+
+# Highlight the elbow point (k=3)
+plt.axvline(x=3, color='black', linestyle=':', label='Optimal k=3 (Elbow)')
+
+plt.title('K-Means Elbow Method for Optimal Grid States', fontsize=14, fontweight='bold')
+plt.xlabel('Number of Clusters (k)', fontsize=12)
+plt.ylabel('Within-Cluster Sum of Squares (WCSS)', fontsize=12)
+plt.xticks(range(1, 11))
+plt.legend()
+
+# 6. Save the plot
+save_path = os.path.join(current_dir, '..', 'elbow_plot.png')
+plt.savefig(save_path, dpi=300, bbox_inches='tight')
+print(f"Elbow plot successfully saved to {save_path}")

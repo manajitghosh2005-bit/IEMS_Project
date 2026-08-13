@@ -1,0 +1,90 @@
+import pandas as pd
+import numpy as np
+import h5py
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
+
+# Set paths using the exact structure from your reference
+try:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    # Fallback if running interactively in Jupyter instead of a .py file
+    current_dir = os.getcwd()
+
+CSV_PATH = os.path.join(current_dir, '..', 'data', 'rye_generation_and_load.csv')
+H5_PATH = os.path.join(current_dir, '..', 'data', 'met_data.h5')
+SAVE_PATH = os.path.join(current_dir, '..', 'dataset_visualization.png')
+
+print(f"Extracting data from:\n1. {CSV_PATH}\n2. {H5_PATH}\n")
+
+# --- 1. Load and Clean Grid CSV ---
+df_grid = pd.read_csv(CSV_PATH)
+# Standardize the time column
+if 'index' in df_grid.columns:
+    df_grid = df_grid.rename(columns={'index': 'DateTime'})
+else:
+    df_grid = df_grid.rename(columns={df_grid.columns[0]: 'DateTime'})
+df_grid['DateTime'] = pd.to_datetime(df_grid['DateTime'], utc=True).dt.tz_localize(None)
+
+# --- 2. Load and Flatten HDF5 Weather Data ---
+sensor_series_dict = {}
+with h5py.File(H5_PATH, 'r') as hdf:
+    base_group = hdf['lat63_41_lon10_11']
+    for sensor in base_group.keys():
+        forecast_group = base_group[sensor]['forecast']
+        all_times = []
+        all_values = []
+        for forecast_time in forecast_group.keys():
+            data_node = forecast_group[forecast_time]
+            all_times.append(data_node['axis1'][:])
+            all_values.append(data_node['block0_values'][:, 0]) 
+        
+        combined_times = np.concatenate(all_times)
+        combined_values = np.concatenate(all_values)
+        temp_df = pd.DataFrame({
+            'DateTime': pd.to_datetime(combined_times, unit='ns', utc=True).tz_localize(None),
+            sensor: combined_values
+        })
+        temp_df = temp_df.drop_duplicates(subset='DateTime', keep='first')
+        sensor_series_dict[sensor] = temp_df.set_index('DateTime')[sensor]
+
+df_weather = pd.DataFrame(sensor_series_dict).reset_index()
+
+# --- 3. Merge Datasets ---
+df_master = pd.merge(df_grid, df_weather, on='DateTime', how='inner')
+
+# --- 4. Generate Academic Heatmap ---
+# Set style for academic presentation as requested
+plt.style.use('seaborn-v0_8-whitegrid')
+plt.figure(figsize=(10, 8))
+
+# Dynamically select core numerical columns to avoid a cluttered graph
+numerical_cols = df_master.select_dtypes(include=[np.number]).columns
+target_cols = [col for col in ['Consumption', 'Generation', 'air_temperature', 'direct_normal_irradiance', 'wind_speed', 'relative_humidity'] if col in numerical_cols]
+
+# Fallback in case column names differ slightly
+if len(target_cols) < 3:
+    target_cols = numerical_cols[:7]
+
+corr_matrix = df_master[target_cols].corr()
+
+# Plot the heatmap
+sns.heatmap(
+    corr_matrix, 
+    annot=True,              
+    cmap='coolwarm',         
+    fmt=".2f",               
+    linewidths=0.5,          
+    cbar_kws={"shrink": .8}, 
+    annot_kws={"size": 12, "weight": "bold"}   
+)
+
+plt.title('Correlation Map: Grid Thermodynamics vs. Load', fontsize=14, fontweight='bold', pad=20)
+plt.xticks(rotation=45, ha='right')
+plt.yticks(rotation=0)
+plt.tight_layout()
+
+# Save the plot using the reference structure
+plt.savefig(SAVE_PATH, dpi=300, bbox_inches='tight')
+print(f"Heatmap successfully saved to {SAVE_PATH}")

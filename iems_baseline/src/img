@@ -1,0 +1,27 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import os
+
+# Set paths
+current_dir = os.path.dirname(os.path.abspath(__file__))
+CSV = os.path.join(current_dir, '..', 'data', 'rye_generation_and_load.csv')
+
+# Load data
+df = pd.read_csv(CSV)
+
+# Set style for academic presentation
+plt.style.use('seaborn-v0_8-whitegrid')
+plt.figure(figsize=(8, 6))
+
+# Plot the distribution of Grid Consumption
+sns.histplot(df['Consumption'], bins=60, color='#2c3e50', kde=True, stat='density', alpha=0.7)
+
+plt.title('Frequency Distribution of Microgrid Consumption', fontsize=14, fontweight='bold')
+plt.xlabel('Electrical Consumption (kW)', fontsize=12)
+plt.ylabel('Density', fontsize=12)
+
+# Save the plot
+save_path = os.path.join(current_dir, '..', 'eda_histogram.png')
+plt.savefig(save_path, dpi=300, bbox_inches='tight')
+print(f"Histogram successfully saved to {save_path}")
