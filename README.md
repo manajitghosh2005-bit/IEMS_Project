@@ -1,4 +1,4 @@
-# Intelligent Energy Management System for Microgrids (IEMS)
+# Intelligent Energy Management System for Microgrids 
 
 This project focuses on building an intelligent framework to optimize energy management within microgrids, featuring baseline models and core project logic.
 
